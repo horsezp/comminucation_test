@@ -7,6 +7,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -31,8 +32,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 public class PriceService {
-	
-	static String folder ="";
+
+	private static String folder = "./";
+
+	private static String incremental = "Y";
 
 	public static HttpClient wrapClient(HttpClient base) throws Exception {
 		SSLContext ctx = SSLContext.getInstance("TLSv1");
@@ -57,13 +60,19 @@ public class PriceService {
 	}
 
 	public static void main(String[] args) throws Exception {
-		
-		folder = args[0];
-		getPriceHistory("hk00405","0405.HK");
-		getPriceHistory("hk06139","6139.HK");
-		getPriceHistory("hk87001","87001.HK");
-		getPriceHistory("hk01426","1426.HK");
-		getPriceHistory("hk01275","1275.HK");
+
+		if (args != null && args.length == 1) {
+			folder = args[0];
+		} else if (args != null && args.length == 2) {
+			folder = args[0];
+			incremental = args[1];
+		}
+
+		getPriceHistory("hk00405", "0405.HK");
+		getPriceHistory("hk06139", "6139.HK");
+		getPriceHistory("hk87001", "87001.HK");
+		getPriceHistory("hk01426", "1426.HK");
+		getPriceHistory("hk01275", "1275.HK");
 		getHSIPrices();
 
 	}
@@ -79,26 +88,25 @@ public class PriceService {
 			System.exit(-1);
 		}
 		HttpEntity httpEntity = response.getEntity();
-		String result = EntityUtils.toString(httpEntity);// ȡ��Ӧ���ַ���
+		String result = EntityUtils.toString(httpEntity);//  
 		String content = result.split("\"")[1];
-		//System.out.println(content);
+		// System.out.println(content);
 		return content.split(",");
 	}
-	
+
 	private static void getHSIPrices() throws Exception {
-		
-		//https://hk.finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI
-		
+		System.out.println("开始获取 恒生指数 历史价格");
+		// https://hk.finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI
 		HttpClient client = wrapClient(new DefaultHttpClient());
 		HttpGet get = new HttpGet("https://hk.finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI");
 		HttpResponse response = client.execute(get);
-		// System.out.println(response.getStatusLine().getStatusCode());
 		if (response.getStatusLine().getStatusCode() != 200) {
+			System.out.println("错误：" + response.getStatusLine().getStatusCode() );
 			System.exit(-1);
 		}
 		HttpEntity httpEntity = response.getEntity();
-		String result = EntityUtils.toString(httpEntity);// ȡ��Ӧ���ַ���
-		//System.out.println(result);
+		String result = EntityUtils.toString(httpEntity);// 
+		// System.out.println(result);
 		String[] lines = result.split("\n");
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		for (String line : lines) {
@@ -112,27 +120,43 @@ public class PriceService {
 				final Gson gson = builder.create();
 
 				Price[] list = gson.fromJson(quoteContent, Price[].class);
-
 				List<String> priceValues = new ArrayList<String>();
+
+				Calendar calendar = Calendar.getInstance();
+				calendar.setTime(new Date());
+				calendar.add(Calendar.DATE, -7);
+				Date oneWeekAgo = calendar.getTime();
+
 				for (Price p : list) {
 					Date date = new Date(p.getDate() * 1000);
 					String dateValue = format.format(date);
+
+					// 只拿一个月的数据
+					if ("Y".equals(incremental)) {
+						if (date.before(oneWeekAgo)) {
+							continue;
+						}
+					}
+
 					if (p.getClose() != null) {
 						String closePrice = p.getClose().setScale(2, BigDecimal.ROUND_HALF_UP).toString();
 						// System.out.println(p.getClose());
-						String content ="HSI,HSI,恒生指数," + dateValue + "," + closePrice;
+						String content = "HSI,HSI,恒生指数," + dateValue + "," + closePrice;
 						// System.out.println(content);
 						priceValues.add(content);
 					}
 				}
-				FileUtils.writeLines(new File(folder + File.separator +  "HSI.csv"), "UTF-8",priceValues);
+				FileUtils.writeLines(new File(folder + File.separator + "HSI.csv"), "UTF-8", priceValues);
 				break;
 			}
 		}
+		System.out.println("开始获取 恒生指数 历史价格结束");
 	}
 
 	private static void getPriceHistory(String hkCode, String stockId)
 			throws Exception, IOException, ClientProtocolException {
+		
+		System.out.println("开始获取 "+ stockId +" 历史价格");
 
 		String[] infos = getNameInfo(hkCode);
 		HttpClient client = wrapClient(new DefaultHttpClient());
@@ -140,6 +164,7 @@ public class PriceService {
 		HttpResponse response = client.execute(get);
 		// System.out.println(response.getStatusLine().getStatusCode());
 		if (response.getStatusLine().getStatusCode() != 200) {
+			System.out.println("错误：" + response.getStatusLine().getStatusCode() );
 			System.exit(-1);
 		}
 		HttpEntity httpEntity = response.getEntity();
@@ -160,10 +185,21 @@ public class PriceService {
 
 				Price[] list = gson.fromJson(quoteContent, Price[].class);
 
+				Calendar calendar = Calendar.getInstance();
+				calendar.setTime(new Date());
+				calendar.add(Calendar.DATE, -7);
+				Date oneWeekAgo = calendar.getTime();
+
 				List<String> priceValues = new ArrayList<String>();
 				for (Price p : list) {
 					Date date = new Date(p.getDate() * 1000);
 					String dateValue = format.format(date);
+					// 只拿一个月的数据
+					if ("Y".equals(incremental)) {
+						if (date.before(oneWeekAgo)) {
+							continue;
+						}
+					}
 					if (p.getClose() != null) {
 						String closePrice = p.getClose().setScale(2, BigDecimal.ROUND_HALF_UP).toString();
 						// System.out.println(p.getClose());
@@ -172,10 +208,12 @@ public class PriceService {
 						priceValues.add(content);
 					}
 				}
-				FileUtils.writeLines(new File(folder + File.separator +stockId + ".csv"), "UTF-8",priceValues);
+				FileUtils.writeLines(new File(folder + File.separator + stockId + ".csv"), "UTF-8", priceValues);
 				break;
 			}
 		}
+		
+		System.out.println("开始获取 "+ stockId +" 历史价格结束");
 	}
 
 }
