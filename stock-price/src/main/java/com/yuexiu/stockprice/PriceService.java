@@ -64,7 +64,7 @@ public class PriceService {
 		getPriceHistory("hk87001","87001.HK");
 		getPriceHistory("hk01426","1426.HK");
 		getPriceHistory("hk01275","1275.HK");
-		getHISPrices();
+		getHSIPrices();
 
 	}
 
@@ -85,7 +85,7 @@ public class PriceService {
 		return content.split(",");
 	}
 	
-	private static void getHISPrices() throws Exception {
+	private static void getHSIPrices() throws Exception {
 		
 		//https://hk.finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI
 		
@@ -120,12 +120,12 @@ public class PriceService {
 					if (p.getClose() != null) {
 						String closePrice = p.getClose().setScale(2, BigDecimal.ROUND_HALF_UP).toString();
 						// System.out.println(p.getClose());
-						String content ="HIS,HIS,恒生指数," + dateValue + "," + closePrice;
+						String content ="HSI,HSI,恒生指数," + dateValue + "," + closePrice;
 						// System.out.println(content);
 						priceValues.add(content);
 					}
 				}
-				FileUtils.writeLines(new File(folder + File.separator +  "HIS.csv"), "UTF-8",priceValues);
+				FileUtils.writeLines(new File(folder + File.separator +  "HSI.csv"), "UTF-8",priceValues);
 				break;
 			}
 		}
