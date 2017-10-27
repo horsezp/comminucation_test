@@ -19,8 +19,12 @@ public class HelloWorldCommand extends HystrixCommand<String> {
 		// super(HystrixCommandGroupKey.Factory.asKey("ExampleGroup"));
 		super(Setter.withGroupKey(HystrixCommandGroupKey.Factory.asKey("HelloWorldGroup"))
 				/* 配置依赖超时时间,500毫秒 */
-				.andCommandPropertiesDefaults(
-						HystrixCommandProperties.Setter().withExecutionIsolationThreadTimeoutInMilliseconds(500)));
+				// .andCommandPropertiesDefaults(
+				// HystrixCommandProperties.Setter().withExecutionIsolationThreadTimeoutInMilliseconds(500)));
+				//
+	     /* 配置信号量隔离方式,默认采用线程池隔离 */  
+        .andCommandPropertiesDefaults(HystrixCommandProperties.Setter().withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.SEMAPHORE))); 
+        
 		System.out.println("execute onCompleted");
 		this.name = name;
 	}
